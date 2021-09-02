@@ -1,0 +1,249 @@
+<html>
+    <head>
+        <!-- DO NOT REMOVE ANY COMMENTS -->
+        <style>
+        .headerItem {
+            position: absolute; 
+            text-align: center;
+            width: 40%; 
+            border-width: 2px; 
+            border-color: black; 
+            border-style: solid; 
+            background-color:  #5ea3b3;
+        }
+        .bodyItem {
+            position: absolute; 
+            width: 40%; 
+            border-width: 1px; 
+            border-color: black; 
+            border-style: solid; 
+        }
+        .removeButton {
+            
+            margin-left: 220%;
+        }
+        </style>
+        <script src="./lokisrc/lokijs.js"></script>
+        <script src="./FileSaver/FileSaver.min.js"></script>
+        <script type="text/javascript">
+            var db= new loki('testdb.json');
+            var recs;
+            var counter = 0;
+
+            function updateRecords() {
+                loadCollection('recs', function (recs) {
+                this.recs = recs;
+                console.log(recs.data);
+                recs.data.forEach(element => {
+                    addRecrd(element.ID, element.Target, element.Direction, element.Asset, element.$loki);
+                });
+                // var newRecords = [ { ID:1, Target:2, Direction:"North", Asset:"1.jpg" },
+                //                     { ID:1, Target:2, Direction:"North", Asset:"1.jpg"},
+                //                     {ID:1, Target:2, Direction:"North", Asset:"1.jpg"}];
+                // recs.insert(newRecords);
+                //console.log("New Record", newRecords);
+                savedb();
+                });
+            }
+
+            function loadCollection(colName, callback) {
+                db.loadDatabase({}, function () {
+                    var _collection = db.getCollection(colName);
+
+                    if (!_collection) {
+                        console.log("Collection %s does not exit.", colName);
+                        _collection = db.addCollection('recs');
+                    }
+
+                    callback(_collection);
+                });
+            }
+
+            function addRecrd(id, target, select, asset, count) {
+                var p = document.getElementById('TableBody');
+                var div = document.createElement('div');
+                div.innerHTML = '<div id="content1" style="margin-top: 0px" align="center">' + 
+                    '<div class="bodyItem">' + id + '</div> ' + 
+                    '<div class="bodyItem" style="left: 20%" align="center">' + target +'</div> ' + 
+                    '<div class="bodyItem" style="left: 40%" align="center">' + select + '</div>' + 
+                    '<div class="bodyItem" style="left: 60%" align="center">' + asset + '</div>' +
+                    '<div class="bodyItem" style="left: 80%" align="center">' + count + '</div>' +
+                    '</div>' + 
+                    '<input id="Button' + counter + '"type="button" value="Delete" ' + 
+                    'class="removeButton" onclick ="RemoveElement(this, ' +  count + ')"></input>';
+                counter++;
+                p.appendChild(div);                
+            }
+
+            function addRecord() {
+                var a1 = document.getElementById("ID").value;
+                var a2 = document.getElementById("Target").value;
+                var a3n = document.getElementById("mySelect").value;
+                // use a3n if you want index based select results. 
+                var sel = document.getElementById("mySelect"); 
+                var a3 = sel.options[sel.selectedIndex].text;
+                //use a3 if you want the text as-is
+                var a4 = document.getElementById("Asset").value;
+                if(a1=="" || a1==null||a2==""||a2==null||a3=="Direction"||a3==null||a4==""||a4==null)
+                {
+                    alert("One of the values missing!");
+                }
+                else      
+                {
+                    var newRecords = { ID:a1, Target:a2, Direction:a3n, Asset:a4};
+                    var lok = recs.insert(newRecords).$loki;
+                    console.log(a1 + " " + lok);
+                    console.log(recs.data);
+                    var p = document.getElementById('TableBody');
+                    var div = document.createElement('div');
+                    div.innerHTML = '<div id="content1" style="margin-top: 0px">' + 
+                        '<div class="bodyItem">' + a1 + '</div> ' + 
+                        '<div class="bodyItem" style="left: 40%">' + a2 +'</div> ' + 
+                        '<div class="bodyItem" style="left: 80%">' + a3 + '</div>' + 
+                        '<div class="bodyItem" style="left: 120%">' + a4 + '</div>' +
+                        '<div class="bodyItem" style="left: 160%">' + lok + '</div>' +
+                        '</div>' + 
+                        '<input id="Button' + counter + '"type="button" value="Delete"' + 
+                        'class="removeButton" style="left:180%" onclick ="RemoveElement(this, ' +  lok + ')"></input>';
+                    counter++;
+                    p.appendChild(div); 
+                    savedb();   
+                }    
+            }
+            function RemoveElement(div, counr) {
+                recs.chain().find({$loki: counr}).remove();
+                document.getElementById("TableBody").removeChild(div.parentNode);   
+                counter--;
+                console.log(recs.data);
+                savedb();
+            }
+
+            function savedb() {
+                db.saveDatabase(function(err) {
+                    if (err) {
+                        console.log(err);
+                    }
+                    else {
+                        console.log("saved");
+                    }
+                    });
+            }
+
+            function getRidOfDb() {
+                var res = confirm("Are you sure you want to clear?");
+                if (res == true) {
+                    recs.clear();
+                    console.log("Deleted");
+                    console.log(recs.data);
+                    savedb();
+                    window.location.reload();
+                }
+            }
+
+            function ExportDB() {
+                    savedb();
+                    var text = "[";
+                    loadCollection('recs', function (recs) {
+                        this.recs = recs;
+                        console.log(recs.data);
+                        recs.data.forEach(element => {
+                            text += "\n\t{";
+                            text += "\n\t\"ID\": " + element.ID;
+                            text += ",\n\t\"Target\": " + element.Target;
+                            text += ",\n\t\"Direction\": " + element.Direction;
+                            text += ",\n\t\"Asset\": " + element.Asset;
+                            text += "\n\t},";
+                        });
+                    text = text.substring(0, text.length - 1);
+                    text += "\n]";
+                    });
+                    var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+                    saveAs(blob, "ExportedValues" + ".loki.db");
+            }
+
+            function ImportDB() {
+                //alert
+                var fileToLoad = document.getElementById("fileToLoad").files[0];
+                var textFromFileLoaded;
+                var objs;
+                var fileReader = new FileReader();
+                fileReader.readAsText(fileToLoad, "UTF-8");
+                fileReader.onload = function(fileLoadedEvent){
+                    textFromFileLoaded = fileLoadedEvent.target.result;
+                    //console.log(textFromFileLoaded);
+                    objs = JSON.parse(textFromFileLoaded);
+                    getRidOfDb();
+                console.log(objs);
+                recs.insert(objs);
+                savedb();
+                };
+            }
+        </script>
+    </head>
+    <body onload="updateRecords()">
+        <div id="MainContainer" style="position: absolute; width: 800px">
+            <div id="Controls" style="position: absolute; width: 500px">
+                    <input type="text" style="position: absolute; width: 19%" placeholder="ID" id="ID"></input>
+                    <input type="text" style="position: absolute; left: 20%; width: 19%" placeholder="Target" id="Target"></input>          
+                    <select id="mySelect" style="position: absolute; left: 40%; width: 19%; height: 21px">
+                        <option value="" disabled selected>Direction</option>
+                        <option value="0">North</option>
+                        <option value="1">North-East1</option>
+                        <option value="2">North-East</option>
+                        <option value="3">North-East2</option>
+                        <option value="4">East</option>
+                        <option value="5">South-East1</option>
+                        <option value="6">South-East</option>
+                        <option value="7">South-East2</option>
+                        <option value="8">South</option>
+                        <option value="9">South-West1</option>
+                        <option value="10">South-West</option>
+                        <option value="11">South-West2</option>
+                        <option value="12">West</option>
+                        <option value="13">North-West1</option>
+                        <option value="14">North-West</option>
+                        <option value="15">North-West2</option>
+                    </select>
+                    <input type="text" placeholder="Asset" id="Asset" style="position: absolute; left: 60%; width: 19%"></input>
+                    <input type="button" name="btnAddRecord" onclick="addRecord()" value="Add Record" 
+                        style="position: absolute; left: 80%; width: 19%"></input>
+            </div>
+            <br><br>    
+            <div id="Controls2" style="position: absolute; width: 500px">
+                <input type="button" style="position: absolute; width: 25%" id="ClearDB" onclick="getRidOfDb()"
+                 value="Clear Database"/>
+                <input type="button" style="position: absolute; width: 25%; margin-left: 26.33%" id="ExportDB" onclick="ExportDB()" 
+                 value="Export Database"/>
+                <input type="file"  style="position: absolute; width: 50%; margin-left: 52.66%" id="fileToLoad" accept=".loki.db">
+                </input>
+                <input type="button" style="position: absolute; width: 25%; margin-left: 103.99%" onclick="ImportDB()" 
+                 multiple="false" value="Implement"/>
+            </div>
+            <br>
+            <br>
+            <br>
+            <!-- Header --> 
+            <div id="Heading" style="position: absolute; width: 500px; height: 25px;  text-align: center">
+                <div class="headerItem">
+                    ID
+                </div>
+                <div class="headerItem" style="left:40%" align="center">
+                    Target
+                </div>
+                <div class="headerItem" style="left:80%" align="center">
+                    Direction
+                </div>
+                <div class="headerItem" style="left:120%" align="center">
+                    Asset
+                </div>
+                <div class="headerItem" style="left:160%" align="center">
+                    Counter
+                </div>
+            </div>
+            <!-- Table Contents -->
+            <div id="TableBody" style="position: absolute; width: 500px; margin-top: 22px; text-align: center; left: 1px">
+            </div>
+            
+        </div>
+    </body>
+</html>
